@@ -14,7 +14,7 @@ cp deploy.package.json ./build/package.json
 gcloud functions deploy trading-bot-proto \
   --runtime=nodejs18 \
   --source=build \
-  --region=europe-west2 \
+  --region=asia-northeast1 \
   --memory=128MB \
   --trigger-http \
   --allow-unauthenticated

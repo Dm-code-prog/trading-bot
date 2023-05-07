@@ -1,4 +1,5 @@
 import functions from "@google-cloud/functions-framework";
-import { handleRequest } from "./handle-request.js";
+import { multiplexer } from "./multiplexer.js";
 
-functions.http("trading-bot-proto", handleRequest);
+
+functions.http("trading-bot-proto", multiplexer);
