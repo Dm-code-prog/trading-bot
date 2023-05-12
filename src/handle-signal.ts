@@ -2,16 +2,14 @@ import { Request, Response } from "@google-cloud/functions-framework";
 import { WebhookPayload } from "./typings/webhook-payload.typings.js";
 import { WebhookPayloadSchema } from "./pkg/zod/webhook-payload.schema.js";
 import { BAD_REQUEST, NO_KEYS, NO_ORDER, OPENED_ORDER, SERVER_ERROR } from "./constants/http-responses.js";
-import { generateMarketOrderQuery } from "./util/generate-market-order-query.js";
 import { getApiKey } from "./secrets/api-key.js";
 import { getSecretKey } from "./secrets/secret-key.js";
-import { ApiClient } from "./pkg/fetch-plus/fetch-plus.js";
-import { Position } from "./typings/position-risk.js";
 import { flipOrderSide } from "./util/flip-order-side.js";
-import { generateLimitOrderQuery } from "./util/generate-limit-order-query.js";
-import { signQuery } from "./util/sign-query.js";
-import { generateStopOrderQuery } from "./util/generate-stop-order-query.js";
 import { BTC_AFTER_COMMA_DIGITS, SIDES } from "./constants/trading.js";
+import { MarketOrder } from "./models/market-order.model.js";
+import { Order } from "./models/order.model.js";
+import { StopOrder } from "./models/stop-order.model.js";
+import { TakeProfitOrder } from "./models/take-profit-order.model.js";
 
 export async function handleSignal(req: Request, res: Response): Promise<void> {
   const body = req.body as WebhookPayload;
@@ -22,7 +20,7 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { symbol, side, quantity, stop_loss_percent, take_profit_percent } = body;
+  const { side, quantity, stop_loss_percent, take_profit_percent } = body;
 
   let apiKey: string;
   let secretKey: string;
@@ -33,7 +31,10 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
   const slPercent = stop_loss_percent ? stop_loss_percent : 1;
   const tpPercent = take_profit_percent ? take_profit_percent : 1;
 
-  const context = {
+  let entryPrice: number;
+  let rollBackMarket: () => void;
+
+  const ctx = {
     market: false,
     tp: false,
     sl: false
@@ -43,32 +44,31 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     [apiKey, secretKey] = await Promise.all([getApiKey(), getSecretKey()]);
   } catch (e) {
     res.status(500).send(NO_KEYS);
-    console.log("Could not load keys");
     return;
   }
 
-  const api = new ApiClient("https://testnet.binancefuture.com/fapi/v1", apiKey);
-  const apiV2 = new ApiClient("https://testnet.binancefuture.com/fapi/v2", apiKey);
-
   try {
-    const signedQuery = generateMarketOrderQuery(secretKey, { symbol, side, quantity });
-    await api.fetch(`/order?${signedQuery}`, {
-      method: "POST"
+    const order = new MarketOrder()
+    .creds(apiKey, secretKey)
+    .quant(quantity)
+    .side(side)
+    .callback(() => {
+      ctx.market = true;
     });
-    context.market = true;
+
+    const { rollback, entryPrice: ep } = await order
+    .verify()
+    .send();
+
+    rollBackMarket = rollback;
+    entryPrice = ep;
   } catch (e) {
     console.log(e);
     res.status(500).send(NO_ORDER);
+    return;
   }
 
   try {
-    const signedPositionRiskQuery = signQuery(`symbol=${symbol}`, secretKey);
-    const positionRiskResponse = await apiV2.fetch<Position[]>(`/positionRisk?${signedPositionRiskQuery}`, {
-      method: "GET"
-    });
-
-    const [risk] = positionRiskResponse;
-    const { entryPrice } = risk;
     if (side === SIDES.buy) {
       sl = (entryPrice * (1 - slPercent * 0.01)).toFixed(BTC_AFTER_COMMA_DIGITS);
       tp = (entryPrice * (1 + tpPercent * 0.01)).toFixed(BTC_AFTER_COMMA_DIGITS);
@@ -77,37 +77,32 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
       tp = (entryPrice * (1 - tpPercent * 0.01)).toFixed(BTC_AFTER_COMMA_DIGITS);
     }
 
-    const setTp = async (): Promise<void> => {
-      const signedTPQuery = generateLimitOrderQuery(secretKey,
-        { price: tp, quantity, symbol, side: flipOrderSide(side) });
-      await api.fetch(`/order?${signedTPQuery}`, {
-        method: "POST"
-      });
-      context.tp = true;
-    };
+    const stopOrder = new StopOrder()
+    .creds(apiKey, secretKey)
+    .quant(quantity)
+    .side(flipOrderSide(side))
+    .price(sl)
+    .callback(() => {
+      ctx.sl = true;
+    });
 
-    const setSl = async (): Promise<void> => {
-      const signedSlQuery = generateStopOrderQuery(secretKey,
-        { price: sl, quantity, symbol, side: flipOrderSide(side) });
-      await api.fetch(`/order?${signedSlQuery}`, {
-        method: "POST"
-      });
-      context.sl = true;
-    };
+    const takeOrder = new TakeProfitOrder()
+    .creds(apiKey, secretKey)
+    .quant(quantity)
+    .side(flipOrderSide(side))
+    .price(tp)
+    .callback(() => {
+      ctx.tp = true;
+    });
 
-    await Promise.all([setSl(), setTp()]);
+    await Promise.all([stopOrder.send(), takeOrder.send()]);
     res.status(200).send(OPENED_ORDER);
   } catch (e) {
-    const { market, tp, sl } = context;
+    const { market, tp, sl } = ctx;
 
     if (market && (!sl || !tp)) {
-      await api.fetch(`/allOpenOrders?${signQuery("symbol=BTCUSDT", secretKey)}`, {
-        method: "DELETE"
-      });
-      const signedQuery = generateMarketOrderQuery(secretKey, { symbol, side: flipOrderSide(side), quantity });
-      await api.fetch(`/order?${signedQuery}`, {
-        method: "POST"
-      });
+      await Order.deleteAll(apiKey, secretKey);
+      await rollBackMarket();
     }
     res.status(500).send(SERVER_ERROR);
   }
