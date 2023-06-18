@@ -41,8 +41,8 @@ jobs:
           gcloud functions deploy tbot \
             --runtime=nodejs18 \
             --source=build \
-            --region=${{ env.GCP_REGION }} \
+            --region=$GCP_REGION \
+            --project=$GCP_PROJECT \
             --memory=128MB \
             --trigger-http \
             --allow-unauthenticated \
-            --service-account=${{ env.GCP_SERVICE_ACCOUNT_KEY }}
