@@ -12,6 +12,7 @@ export async function handleCleanup(_: Request, res: Response): Promise<void> {
     await Order.deleteAll(apiKey, secretKey)
     res.status(200).send(CLOSED_ORDER)
   } catch (e) {
+    console.log("Could not close all orders", e)
     res.status(500).send(SERVER_ERROR);
     return;
   }

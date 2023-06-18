@@ -10,6 +10,8 @@ import { MarketOrder } from "./models/market-order.model.js";
 import { Order } from "./models/order.model.js";
 import { StopOrder } from "./models/stop-order.model.js";
 import { TakeProfitOrder } from "./models/take-profit-order.model.js";
+import fetch from "node-fetch";
+import { DISPOSER_IP } from "./constants/services.js";
 
 export async function handleSignal(req: Request, res: Response): Promise<void> {
   const body = req.body as WebhookPayload;
@@ -19,6 +21,8 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     res.status(400).send(BAD_REQUEST);
     return;
   }
+
+  
 
   const { side, quantity, stop_loss_percent, take_profit_percent } = body;
 
@@ -45,6 +49,17 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
   } catch (e) {
     res.status(500).send(NO_KEYS);
     return;
+  }
+
+  const disposerReq = await fetch(`http://${DISPOSER_IP}/api/listen-and-clean`, {
+    method: 'POST',
+    body: JSON.stringify({user: "root"})
+  })
+
+  if (!disposerReq.ok) {
+    res.status(500).send(SERVER_ERROR);
+    console.log(disposerReq.status)
+    return
   }
 
   try {

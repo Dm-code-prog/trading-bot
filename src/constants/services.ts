@@ -1,0 +1,1 @@
+export const DISPOSER_IP = process.env.DISPOSER_IP
