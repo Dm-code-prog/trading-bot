@@ -15,11 +15,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Cloud SDK
-        uses: google-gcloud-actions/setup-gcloud@v0.3.0
-        with:
-          service_account_key: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ env.GCP_PROJECT }}
+      - name: Set up gcloud Cloud SDK environment
+        uses: google-github-actions/setup-gcloud@v1.1.1
       - name: Authenticate with Service Account
         run: |
           echo "$GCP_SERVICE_ACCOUNT_KEY" > key.json
