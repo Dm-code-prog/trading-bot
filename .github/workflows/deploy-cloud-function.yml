@@ -34,7 +34,6 @@ jobs:
             --format=esm \
             --minify \
             --bundle \
-            --clean
 
           cp deploy.package.json ./build/package.json                    
       - name: Deploy the function
