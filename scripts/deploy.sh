@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+npm i -g esbuild
+
 esbuild ./src/index.ts \
   --platform=node \
   --target=node18 \

@@ -1,0 +1,52 @@
+name: Deploy the bot as a cloud function 
+
+env: 
+  GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Cloud SDK
+        uses: google-gcloud-actions/setup-gcloud@v0.3.0
+        with:
+          service_account_key: ${{ env.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT }}
+      - name: Authenticate with Service Account
+        run: |
+          echo "$GCP_SERVICE_ACCOUNT_KEY" > key.json
+          gcloud auth activate-service-account --key-file=key.json
+          rm key.json
+      - name: Build the function
+        run: |
+          npm i -g esbuild
+
+          esbuild ./src/index.ts \
+            --platform=node \
+            --target=node18 \
+            --outdir=build \
+            --packages=external \
+            --format=esm \
+            --minify \
+            --bundle \
+            --clean
+
+          cp deploy.package.json ./build/package.json                    
+      - name: Deploy the function
+        run: |
+          gcloud functions deploy tbot \
+            --runtime=nodejs18 \
+            --source=build \
+            --region=${{ env.GCP_REGION }} \
+            --memory=128MB \
+            --trigger-http \
+            --allow-unauthenticated \
+            --service-account=${{ env.GCP_SERVICE_ACCOUNT_KEY }}
