@@ -38,7 +38,7 @@ jobs:
           cp deploy.package.json ./build/package.json                    
       - name: Deploy the function
         run: |
-          gcloud functions deploy tbot \
+          gcloud functions deploy trading-bot-proto \
             --runtime=nodejs18 \
             --source=build \
             --region=$GCP_REGION \

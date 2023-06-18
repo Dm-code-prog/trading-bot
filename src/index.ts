@@ -3,4 +3,4 @@ import functions from "@google-cloud/functions-framework";
 import { multiplexer } from "./multiplexer.js";
 
 
-functions.http("tbot", multiplexer);
+functions.http("trading-bot-proto", multiplexer);
