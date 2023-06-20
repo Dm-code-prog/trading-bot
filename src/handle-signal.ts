@@ -12,6 +12,9 @@ import { StopOrder } from "./models/stop-order.model.js";
 import { TakeProfitOrder } from "./models/take-profit-order.model.js";
 import fetch from "node-fetch";
 import { DISPOSER_IP } from "./constants/services.js";
+import { ApiClient } from "./pkg/fetch-plus/fetch-plus.js";
+import { signQuery } from "./util/sign-query.js";
+import { Position } from "./typings/position-risk.js";
 
 export async function handleSignal(req: Request, res: Response): Promise<void> {
   const body = req.body as WebhookPayload;
@@ -22,9 +25,7 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  
-
-  const { side, quantity, stop_loss_percent, take_profit_percent } = body;
+  const { side, quantity, stop_loss_percent, take_profit_percent, symbol } = body;
 
   let apiKey: string;
   let secretKey: string;
@@ -51,9 +52,24 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const apiV2 = new ApiClient("https://testnet.binancefuture.com/fapi/v2", apiKey);
+  const signedPositionRiskQuery = signQuery(`symbol=${symbol}`, secretKey);
+  const positionRiskResponse = await apiV2.fetch<Position[]>(`/positionRisk?${signedPositionRiskQuery}`, {
+    method: "GET"
+  });
+
+  const [risk] = positionRiskResponse;
+
+  const { positionAmt } = risk;
+
+  if (Number(positionAmt) !== 0) {
+    res.status(400).send(BAD_REQUEST)
+    return
+  }
+
   const disposerReq = await fetch(`http://${DISPOSER_IP}/api/listen-and-clean`, {
     method: 'POST',
-    body: JSON.stringify({user: "root"})
+    body: JSON.stringify({ user: "root" })
   })
 
   if (!disposerReq.ok) {
@@ -64,16 +80,16 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
 
   try {
     const order = new MarketOrder()
-    .creds(apiKey, secretKey)
-    .quant(quantity)
-    .side(side)
-    .callback(() => {
-      ctx.market = true;
-    });
+      .creds(apiKey, secretKey)
+      .quant(quantity)
+      .side(side)
+      .callback(() => {
+        ctx.market = true;
+      });
 
     const { rollback, entryPrice: ep } = await order
-    .verify()
-    .send();
+      .verify()
+      .send();
 
     rollBackMarket = rollback;
     entryPrice = ep;
@@ -93,22 +109,22 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     }
 
     const stopOrder = new StopOrder()
-    .creds(apiKey, secretKey)
-    .quant(quantity)
-    .side(flipOrderSide(side))
-    .price(sl)
-    .callback(() => {
-      ctx.sl = true;
-    });
+      .creds(apiKey, secretKey)
+      .quant(quantity)
+      .side(flipOrderSide(side))
+      .price(sl)
+      .callback(() => {
+        ctx.sl = true;
+      });
 
     const takeOrder = new TakeProfitOrder()
-    .creds(apiKey, secretKey)
-    .quant(quantity)
-    .side(flipOrderSide(side))
-    .price(tp)
-    .callback(() => {
-      ctx.tp = true;
-    });
+      .creds(apiKey, secretKey)
+      .quant(quantity)
+      .side(flipOrderSide(side))
+      .price(tp)
+      .callback(() => {
+        ctx.tp = true;
+      });
 
     await Promise.all([stopOrder.send(), takeOrder.send()]);
     res.status(200).send(OPENED_ORDER);
