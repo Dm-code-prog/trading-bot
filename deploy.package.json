@@ -30,6 +30,7 @@
   "author": "Dmitry Kozlov",
   "license": "UNLICENZED",
   "dependencies": {
+    "@google-cloud/firestore": "^6.6.1",
     "@google-cloud/functions-framework": "^3.0.0",
     "tslib": "~2.5",
     "zod": "^3.21.4",
