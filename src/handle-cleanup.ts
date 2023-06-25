@@ -1,19 +1,25 @@
-import { getApiKey } from "./secrets/api-key.js";
-import { getSecretKey } from "./secrets/secret-key.js";
-import { CLOSED_ORDER, SERVER_ERROR } from "./constants/http-responses.js";
-import { Order } from "./models/order.model.js";
+import { Order } from './models/order.model.js';
 
-import type { Request, Response } from "@google-cloud/functions-framework";
+import type { Request, Response } from '@google-cloud/functions-framework';
+import { WebhookPayload } from './typings/webhook-payload.typings.js';
 
-
-export async function handleCleanup(_: Request, res: Response): Promise<void> {
+export async function handleCleanup(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const body = req.body as WebhookPayload;
   try {
-    const [apiKey, secretKey] = await Promise.all([getApiKey(), getSecretKey()]);
-    await Order.deleteAll(apiKey, secretKey)
-    res.status(200).send(CLOSED_ORDER)
+    const { api_key, secret_key } = body;
+    await Order.deleteAll(api_key, secret_key);
+    res.status(200).send({
+      status: 200,
+      message: 'Closed all open orders',
+    });
   } catch (e) {
-    console.log("Could not close all orders", e)
-    res.status(500).send(SERVER_ERROR);
+    res.status(500).send({
+      status: 500,
+      message: 'Server error: could not close all open orders.',
+    });
     return;
   }
 }

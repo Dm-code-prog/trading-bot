@@ -1,18 +1,19 @@
-import { signQuery } from "../util/sign-query.js";
-import { ApiClient } from "../pkg/fetch-plus/fetch-plus.js";
+import { signQuery } from '../util/sign-query.js';
+import { ApiClient } from '../pkg/fetch-plus/fetch-plus.js';
+import { Position } from '../typings/position-risk.js';
 
 export abstract class Order {
-  protected readonly symbol = "BTCUSDT";
+  protected readonly symbol = 'BTCUSDT';
 
   protected secret: string;
 
   protected apikey: string;
 
-  protected orderSide: "BUY" | "SELL";
+  protected orderSide: 'BUY' | 'SELL';
 
   protected quantity: number;
 
-  protected type: "MARKET" | "STOP_MARKET" | "LIMIT";
+  protected type: 'MARKET' | 'STOP_MARKET' | 'LIMIT' | 'TRAILING_STOP_MARKET';
 
   protected cb: () => void;
 
@@ -27,7 +28,7 @@ export abstract class Order {
     return this;
   }
 
-  public side(s: "BUY" | "SELL"): this {
+  public side(s: 'BUY' | 'SELL'): this {
     this.orderSide = s;
     return this;
   }
@@ -37,10 +38,42 @@ export abstract class Order {
     return this;
   }
 
+  /**
+   * Close all open orders (not positions!!!)
+   */
   static async deleteAll(apikey: string, secret: string): Promise<void> {
-    const api = new ApiClient("https://testnet.binancefuture.com/fapi/v1", apikey);
-    await api.fetch(`/allOpenOrders?${signQuery("symbol=BTCUSDT", secret)}`, {
-      method: "DELETE"
+    const api = new ApiClient(
+      'https://testnet.binancefuture.com/fapi/v1',
+      apikey,
+    );
+    await api.fetch(`/allOpenOrders?${signQuery('symbol=BTCUSDT', secret)}`, {
+      method: 'DELETE',
     });
+  }
+
+  /**
+   * Get the size of the open position for BTCUSDT
+   */
+  static async getPositionSize(
+    apiKey: string,
+    secretKey: string,
+  ): Promise<number> {
+    const apiV2 = new ApiClient(
+      'https://testnet.binancefuture.com/fapi/v2',
+      apiKey,
+    );
+    const signedPositionRiskQuery = signQuery('symbol=BTCUSDT', secretKey);
+    const positionRiskResponse = await apiV2.fetch<Position[]>(
+      `/positionRisk?${signedPositionRiskQuery}`,
+      {
+        method: 'GET',
+      },
+    );
+
+    const [risk] = positionRiskResponse;
+    const { positionAmt } = risk;
+    const asNumber = Number(positionAmt);
+
+    return asNumber;
   }
 }

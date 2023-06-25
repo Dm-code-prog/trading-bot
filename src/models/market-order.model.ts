@@ -4,6 +4,7 @@ import { signQuery } from "../util/sign-query.js";
 import { ApiClient } from "../pkg/fetch-plus/fetch-plus.js";
 import { flipOrderSide } from "../util/flip-order-side.js";
 import { Position } from "../typings/position-risk.js";
+import { BINANCE_REST_URL } from "../constants/services.js";
 
 export class MarketOrder extends Order {
   constructor() {
@@ -26,13 +27,13 @@ export class MarketOrder extends Order {
     const { symbol, orderSide, type, quantity, secret, apikey } = this;
     const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}`;
     const signed = signQuery(query, secret);
-    const api = new ApiClient("https://testnet.binancefuture.com/fapi/v1", apikey);
+    const api = new ApiClient(`${BINANCE_REST_URL}/fapi/v1`, apikey);
 
     await api.fetch(`/order?${signed}`, {
       method: "POST"
     });
 
-    const apiV2 = new ApiClient("https://testnet.binancefuture.com/fapi/v2", apikey);
+    const apiV2 = new ApiClient(`${BINANCE_REST_URL}/fapi/v2`, apikey);
     const signedPositionRiskQuery = signQuery(`symbol=${symbol}`, secret);
     const positionRiskResponse = await apiV2.fetch<Position[]>(`/positionRisk?${signedPositionRiskQuery}`, {
       method: "GET"
