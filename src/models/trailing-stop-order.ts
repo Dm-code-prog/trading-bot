@@ -39,7 +39,7 @@ export class TrailingStopOrder extends Order {
     const { symbol, orderSide, type, quantity, secret, apikey, orderPrice, recvWindow,  } = this;
     const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}&activationPrice=${orderPrice}&recvWindow=${recvWindow}&callbackRate=0.2&priceRate=0.1`;
     const signed = signQuery(query, secret);
-    const api = new ApiClient(`${BINANCE_REST_URL}fapi/v1`, apikey);
+    const api = new ApiClient(`${BINANCE_REST_URL}/fapi/v1`, apikey);
 
     await api.fetch(`/order?${signed}`, {
       method: "POST"
