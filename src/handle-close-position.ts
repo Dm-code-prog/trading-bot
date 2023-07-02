@@ -17,12 +17,15 @@ export async function handleClosePosition(
       secret_key,
     );
 
-    await new MarketOrder()
+    const order = new MarketOrder()
       .creds(api_key, secret_key)
       .quant(positionAmount)
       .side(flipOrderSide(positionSide))
-      .verify()
-      .send();
+      .verify();
+
+    if (positionAmount !== 0) {
+      await order.send();
+    }
 
     await Order.deleteAll(api_key, secret_key);
     res.status(200).send({
