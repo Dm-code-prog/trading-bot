@@ -8,6 +8,7 @@ import { handleSignal } from './handle-signal.js';
 import { handle404 } from './handle-404.js';
 import { handlePing } from './handle-ping.js';
 import { handleCleanup } from './handle-cleanup.js';
+import { handleClosePosition } from './handle-close-position.js';
 
 const firestore = new Firestore({
   projectId: 'yahastik-bot',
@@ -49,7 +50,7 @@ export async function multiplexer(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { signal, ping, cleanup } = HTTP_PATHS;
+  const { signal, ping, cleanup, close_position } = HTTP_PATHS;
   switch (req.path) {
     case signal:
       return handleSignal(req, res);
@@ -57,6 +58,8 @@ export async function multiplexer(req: Request, res: Response): Promise<void> {
       return handlePing(req, res);
     case cleanup:
       return handleCleanup(req, res);
+    case close_position:
+      return handleClosePosition(req, res)  
     default:
       return handle404(req, res);
   }

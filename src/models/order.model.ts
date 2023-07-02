@@ -54,10 +54,13 @@ export abstract class Order {
   /**
    * Get the size of the open position for BTCUSDT
    */
-  static async getPositionSize(
+  static async getPosition(
     apiKey: string,
     secretKey: string,
-  ): Promise<number> {
+  ): Promise<{
+    positionAmount: number;
+    positionSide: 'BUY' | 'SELL';
+  }> {
     const apiV2 = new ApiClient(
       'https://testnet.binancefuture.com/fapi/v2',
       apiKey,
@@ -71,9 +74,11 @@ export abstract class Order {
     );
 
     const [risk] = positionRiskResponse;
-    const { positionAmt } = risk;
+    const { positionAmt, positionSide } = risk;
     const asNumber = Number(positionAmt);
 
-    return asNumber;
+    const side = positionSide as 'BUY' | 'SELL';
+
+    return { positionAmount: asNumber, positionSide: side };
   }
 }

@@ -64,9 +64,9 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
   };
 
   try {
-    const positionAmt = await Order.getPositionSize(api_key, secret_key);
+    const {positionAmount } = await Order.getPosition(api_key, secret_key);
 
-    if (positionAmt !== 0) {
+    if (positionAmount !== 0) {
       res.status(400).send({
         status: 400,
         message:
