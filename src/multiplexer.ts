@@ -19,8 +19,8 @@ export async function multiplexer(req: Request, res: Response): Promise<void> {
   const secret_key = req.body.secret_key;
 
   if (!api_key || !secret_key) {
-    res.status(401).send({
-      status: 401,
+    res.status(403).send({
+      status: 403,
       message: 'Unauthorized: the credentials you provided are insufficient.',
     });
     return;
