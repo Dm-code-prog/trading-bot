@@ -39,7 +39,14 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { side, quantity, stop_loss_percent, take_profit_percent, api_key, secret_key } = body;
+  const {
+    side,
+    quantity,
+    stop_loss_percent,
+    take_profit_percent,
+    api_key,
+    secret_key,
+  } = body;
 
   let sl: string;
   let tp: string;
@@ -56,15 +63,23 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     sl: false,
   };
 
-  const positionAmt = await Order.getPositionSize(api_key, secret_key);
+  try {
+    const positionAmt = await Order.getPositionSize(api_key, secret_key);
 
-  if (positionAmt !== 0) {
-    res.status(400).send({
-      status: 400,
+    if (positionAmt !== 0) {
+      res.status(400).send({
+        status: 400,
+        message:
+          'Bad request: we allow only one position to be open at once for a given trading symbol.',
+      });
+      return;
+    }
+  } catch (e) {
+    res.status(500).send({
+      status: 500,
       message:
-        'Bad request: we allow only one position to be open at once for a given trading symbol.',
+        'Server error, we were unable to check your current positions, to safely open a new one.',
     });
-    return;
   }
 
   const disposerReq = await fetch(
