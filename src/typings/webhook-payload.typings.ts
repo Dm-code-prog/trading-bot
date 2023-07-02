@@ -5,5 +5,6 @@ export interface WebhookPayload {
   symbol: 'BTCUSDT';
   quantity: number;
   stop_loss_percent: number;
-  take_profit_percent: number;
+  activation_price: number;
+  callback_rate: number;
 }

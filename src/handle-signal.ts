@@ -39,14 +39,22 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { side, quantity, stop_loss_percent, api_key, secret_key } = body;
+  const {
+    side,
+    quantity,
+    stop_loss_percent,
+    api_key,
+    secret_key,
+    activation_price,
+    callback_rate,
+  } = body;
 
   let sl: string;
   let ac: string;
 
   const slPercent = stop_loss_percent ? stop_loss_percent : 1;
-  const activationPrice = 0.2;
-  const callbackRate = 0.1;
+  const activationPrice = activation_price ? activation_price : 0.2;
+  const callbackRate = callback_rate ? callback_rate : 0.1;
 
   let entryPrice: number;
   let rollBackMarket: () => Promise<void>;

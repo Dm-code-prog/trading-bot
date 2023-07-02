@@ -11,5 +11,6 @@ export const WebhookPayloadSchema = z.object({
   }),
   quantity: z.number().positive(),
   stop_loss_percent: z.number().positive().max(50).optional(),
-  take_profit_percent: z.number().positive().max(50).optional()
+  activation_price: z.number().positive().max(50).optional(),
+  callback_rate: z.number().positive().max(5).optional(),
 });
