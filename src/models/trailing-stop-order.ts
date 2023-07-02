@@ -1,15 +1,17 @@
-import { Order } from "./order.model.js";
-import { NewStopOrderSchema } from "../pkg/zod/new-stop-order.schema.js";
-import { signQuery } from "../util/sign-query.js";
-import { ApiClient } from "../pkg/fetch-plus/fetch-plus.js";
-import { BINANCE_REST_URL } from "../constants/services.js";
+import { Order } from './order.model.js';
+import { NewStopOrderSchema } from '../pkg/zod/new-stop-order.schema.js';
+import { signQuery } from '../util/sign-query.js';
+import { ApiClient } from '../pkg/fetch-plus/fetch-plus.js';
+import { BINANCE_REST_URL } from '../constants/services.js';
 
 export class TrailingStopOrder extends Order {
-  protected readonly timeInForce = "GTC";
+  protected readonly timeInForce = 'GTC';
 
   protected readonly recvWindow = 10000;
 
   protected orderPrice: string;
+
+  protected cr: number;
 
   public verify(): TrailingStopOrder {
     NewStopOrderSchema.parse({
@@ -20,14 +22,14 @@ export class TrailingStopOrder extends Order {
       type: this.type,
       price: this.orderPrice,
       timeInForce: this.timeInForce,
-      recvWindow: this.recvWindow
+      recvWindow: this.recvWindow,
     });
     return this;
   }
 
   constructor() {
     super();
-    this.type = "TRAILING_STOP_MARKET";
+    this.type = 'TRAILING_STOP_MARKET';
   }
 
   public activationPrice(p: string): TrailingStopOrder {
@@ -35,14 +37,29 @@ export class TrailingStopOrder extends Order {
     return this;
   }
 
+  public callbackRate(p: number): TrailingStopOrder {
+    this.cr = p;
+    return this;
+  }
+
   public async send(): Promise<void> {
-    const { symbol, orderSide, type, quantity, secret, apikey, orderPrice, recvWindow,  } = this;
-    const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}&activationPrice=${orderPrice}&recvWindow=${recvWindow}&callbackRate=0.2&priceRate=0.1`;
+    const {
+      symbol,
+      orderSide,
+      type,
+      quantity,
+      secret,
+      apikey,
+      orderPrice,
+      recvWindow,
+      cr,
+    } = this;
+    const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}&activationPrice=${orderPrice}&recvWindow=${recvWindow}&callbackRate=${cr}`;
     const signed = signQuery(query, secret);
     const api = new ApiClient(`${BINANCE_REST_URL}/fapi/v1`, apikey);
 
     await api.fetch(`/order?${signed}`, {
-      method: "POST"
+      method: 'POST',
     });
 
     this.cb?.();

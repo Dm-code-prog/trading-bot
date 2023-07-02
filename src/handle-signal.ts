@@ -39,32 +39,26 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const {
-    side,
-    quantity,
-    stop_loss_percent,
-    take_profit_percent,
-    api_key,
-    secret_key,
-  } = body;
+  const { side, quantity, stop_loss_percent, api_key, secret_key } = body;
 
   let sl: string;
-  let tp: string;
+  let ac: string;
 
   const slPercent = stop_loss_percent ? stop_loss_percent : 1;
-  const tpPercent = take_profit_percent ? take_profit_percent : 1;
+  const activationPrice = 0.2;
+  const callbackRate = 0.1;
 
   let entryPrice: number;
   let rollBackMarket: () => Promise<void>;
 
   const ctx = {
     market: false,
-    tp: false,
+    trail: false,
     sl: false,
   };
 
   try {
-    const {positionAmount } = await Order.getPosition(api_key, secret_key);
+    const { positionAmount } = await Order.getPosition(api_key, secret_key);
 
     if (positionAmount !== 0) {
       res.status(400).send({
@@ -82,13 +76,10 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     });
   }
 
-  const disposerReq = await fetch(
-    `http://${DISPOSER_IP}/api/dispose`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ api_key, secret_key }),
-    },
-  );
+  const disposerReq = await fetch(`http://${DISPOSER_IP}/api/dispose`, {
+    method: 'POST',
+    body: JSON.stringify({ api_key, secret_key }),
+  });
 
   if (!disposerReq.ok) {
     res.status(500).send({
@@ -130,14 +121,14 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
       sl = (entryPrice * (1 - slPercent * 0.01)).toFixed(
         BTC_AFTER_COMMA_DIGITS,
       );
-      tp = (entryPrice * (1 + tpPercent * 0.01)).toFixed(
+      ac = (entryPrice * (1 + activationPrice * 0.01)).toFixed(
         BTC_AFTER_COMMA_DIGITS,
       );
     } else {
       sl = (entryPrice * (1 + slPercent * 0.01)).toFixed(
         BTC_AFTER_COMMA_DIGITS,
       );
-      tp = (entryPrice * (1 - tpPercent * 0.01)).toFixed(
+      ac = (entryPrice * (1 - activationPrice * 0.01)).toFixed(
         BTC_AFTER_COMMA_DIGITS,
       );
     }
@@ -155,21 +146,22 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
       .creds(api_key, secret_key)
       .quant(quantity)
       .side(flipOrderSide(side))
-      .activationPrice(tp)
+      .activationPrice(ac)
+      .callbackRate(callbackRate)
       .callback(() => {
-        ctx.tp = true;
+        ctx.trail = true;
       });
 
     await Promise.all([stopOrder.send(), takeOrder.send()]);
     res.status(200).send({
       status: 204,
-      message: `Successfully opened new position with entry price: ${entryPrice}, stop-loss order with price: ${sl} and trailing stop order with activation price: ${tp}`,
+      message: `Successfully opened new position with entry price: ${entryPrice}, stop-loss order with price: ${sl} and trailing stop order with activation price: ${ac}`,
     });
   } catch (e) {
     logger.log(`Were unable to set tp and sl, encounered error: ${e}`);
-    const { market, tp, sl } = ctx;
+    const { market, trail, sl } = ctx;
 
-    if (market && (!sl || !tp)) {
+    if (market && (!sl || !trail)) {
       await Order.deleteAll(api_key, secret_key);
       await rollBackMarket();
     }
