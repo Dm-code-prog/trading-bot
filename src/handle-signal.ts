@@ -163,9 +163,7 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     await Promise.all([stopOrder.send(), takeOrder.send()]);
     res.status(200).send({
       status: 204,
-      message: `Successfully opened new position with entry price: ${entryPrice}, 
-                stop-loss order with price: ${sl} and trailing stop order with activation price: ${tp} 
-       `,
+      message: `Successfully opened new position with entry price: ${entryPrice}, stop-loss order with price: ${sl} and trailing stop order with activation price: ${tp}`,
     });
   } catch (e) {
     logger.log(`Were unable to set tp and sl, encounered error: ${e}`);
@@ -177,9 +175,7 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
     }
     res.status(500).send({
       status: 500,
-      message: `Server error: we successfully opened a position, but were unable to set stop-loss and take profit.
-                Open futures positions without a stop-loss and a take-profit are very dangerous, so we closed it immediately.
-              `,
+      message: `Server error: we successfully opened a position, but were unable to set stop-loss and take profit. Open futures positions without a stop-loss and a take-profit are very dangerous, so we closed it immediately.`,
     });
   }
 }
