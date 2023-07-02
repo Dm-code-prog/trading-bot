@@ -83,10 +83,10 @@ export async function handleSignal(req: Request, res: Response): Promise<void> {
   }
 
   const disposerReq = await fetch(
-    `http://${DISPOSER_IP}/api/listen-and-clean`,
+    `http://${DISPOSER_IP}/api/dispose`,
     {
       method: 'POST',
-      body: JSON.stringify({ user: 'root' }),
+      body: JSON.stringify({ api_key, secret_key }),
     },
   );
 
