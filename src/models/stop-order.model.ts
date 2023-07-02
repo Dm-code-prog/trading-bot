@@ -27,7 +27,7 @@ export class StopOrder extends Order {
 
   constructor() {
     super();
-    this.type = "STOP_MARKET";
+    this.type = "LIMIT";
   }
 
   public price(p: string): StopOrder {
@@ -37,7 +37,7 @@ export class StopOrder extends Order {
 
   public async send(): Promise<void> {
     const { symbol, orderSide, type, quantity, secret, apikey, orderPrice, recvWindow, timeInForce } = this;
-    const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}&stopPrice=${orderPrice}&timeInForce=${timeInForce}&recvWindow=${recvWindow}`;
+    const query = `symbol=${symbol}&side=${orderSide}&type=${type}&quantity=${quantity}&price=${orderPrice}&timeInForce=${timeInForce}&recvWindow=${recvWindow}`;
     const signed = signQuery(query, secret);
     const api = new ApiClient(`${BINANCE_REST_URL}/fapi/v1`, apikey);
 
